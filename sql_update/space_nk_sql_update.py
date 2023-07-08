@@ -35,7 +35,7 @@ def last_week_store(file, update_closed_stores=False, save_files=False):
 
 def fiscal_year_store(file, save_files=False):
     """
-    Reads 2nd sheet and transforms it into a raw dataframe (cols : store no, store,
+    Reads 2nd sheet and transforms it into a raw dataframe (schema in base files)
     :param file: str - Excel file we are reading
     :param save_files: bool - do we want to store the table also locally in Excel to check it
     :return: pandas.DataFrame object - returns transformed data(frame)
