@@ -29,7 +29,7 @@ def last_week_store(file, update_closed_stores=False, save_files=False):
     # a small check if Excel structure changed.
     if df_lw_store.columns[0] != 'Store No' or df_lw_store.iloc[-1]['Store No'] in ['Total','LY %','LY Total'] or\
             pd.isnull(df_lw_store.iloc[-1]['Store No']):
-        raise BaseException("ERROR: Structure of the dataframe is not correct")
+        raise Exception("ERROR: Structure of the dataframe is not correct")
 
 
     if not update_closed_stores:
@@ -85,9 +85,13 @@ def fiscal_year_store(file, save_files=False):
     df_fy_store2 = df_fy_store2.iloc[2:].reset_index(drop=True)
     # transposing the frame to remove the header row and transpose back
     df_fy_store3 = df_fy_store2.T.set_index(0).T
+    # The only structural error im not catching here is if there are less empty rows between the two tables than it
+    # should be. In that case, we will have dataframe that is missing some store data.
+    # I would probably implement some hard coded number(and pull it from config file) on how many rows I need to have
+    # assuming number of stores is not changing (frequently).
     if df_fy_store3.columns[0] != 'Store No' or df_fy_store3.iloc[-1]['Store No'] in ['Total\n', 'LY %', 'LY Total'] or\
             pd.isnull(df_fy_store3.iloc[-1]['Store No']):
-                raise BaseException("ERROR: Structure of the dataframe is not correct")
+                raise Exception("ERROR: Structure of the dataframe is not correct")
 
     # applying the function set below which goes through values and creates new raw data
     new_data = []
@@ -156,7 +160,7 @@ def update_spacenk(save_files=True, sheets=None, path=""):
         if sheet == 'lw_store':
             try:
                 df_lw_store = last_week_store(file, update_closed_stores=True, save_files=save_files)
-            except BaseException as e:
+            except Exception as e:
                 updated_table_messages.append(f"ERROR {str(e)}")
                 print(str(e))
                 continue
@@ -165,7 +169,7 @@ def update_spacenk(save_files=True, sheets=None, path=""):
         elif sheet == 'fy_store':
             try:
                 df_fy_store = fiscal_year_store(file, save_files=save_files)
-            except BaseException as e:
+            except Exception as e:
                 updated_table_messages.append(f"ERROR {str(e)}")
                 print(str(e))
                 continue
