@@ -116,15 +116,15 @@ def update_spacenk(save_files=False, sheets=None):
 
     if sheets is None:
         sheets = ['lw_store', 'fy_store']
+    match_string = 'SpaceNK_2.0*.xlsx'
     # Using glob to find the file since I noticed the file name may be inconsistent with (2) (1) in name.
     # I assumed this file is imported somewhere and is not in the same folder with other same named files.
-    match_string = 'SpaceNK_2.0*.xlsx'
     file = glob.glob(match_string)[0]
-    with open('login_data.json', 'r') as fp:
-        login_data = json.load(fp)
-    engine = create_engine(f'postgresql://{login_data["sql_user"]}:'
-                           f'{login_data["sql_password"]}@{login_data["sql_host"]}:'
-                           f'{login_data["sql_port"]}/{login_data["sql_name"]}')
+    with open('config.json', 'r') as fp:
+        config_data = json.load(fp)
+    engine = create_engine(f'postgresql://{config_data["sql_user"]}:'
+                           f'{config_data["sql_password"]}@{config_data["sql_host"]}:'
+                           f'{config_data["sql_port"]}/{config_data["sql_name"]}')
     # calling last week store and fiscal year store functions that read the sheets and updates the data
     # Base was imported from other file together with table names below
     spaceNK_base.metadata.create_all(engine)

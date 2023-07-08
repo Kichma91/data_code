@@ -1,5 +1,9 @@
+import json
+
 from prefect import flow, get_run_logger, task
+
 from sql_update.space_nk_sql_update import update_spacenk
+
 
 
 @task(name="SpaceNK Update")
@@ -37,4 +41,7 @@ def update_all_tables(space_nk=True, space_nk_sheets=None):
 
 
 if __name__ == "__main__":
-    update_all_tables()
+    with open('config.json', 'r') as fp:
+        config_data = json.load(fp)
+
+    update_all_tables(space_nk=config_data['space_nk_update'], space_nk_sheets=config_data['space_nk_sheets'])
