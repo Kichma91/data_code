@@ -9,17 +9,18 @@ from base_files.space_nk_base_files import spaceNK_base, lw_store_table_name, fy
 """
 Besides reading first sheet, I also added code for 2nd sheet. Also, looking at the other
 tables I think the code would be mostly a variation of these 2 codes below.
-The code was tested on my PC and succesfully uploaded the data to PostGreSQL server
+The code was tested on my PC and successfully uploaded the data to PostGreSQL server
 """
 
 
 def last_week_store(file, update_closed_stores=False, save_files=False):
     """
-    function that reads first sheet and updates it
-    :param file: Excel file we are reading
-    :param update_closed_stores: there is data from closed stores. True if we want those stores included in update
+    function that reads first sheet and returns transformed data
+    :param file: str - Excel file we are reading
+    :param update_closed_stores: bool - there is data from closed stores. True if we want those stores included in update
                                   False if we want it filtered out
-    :param save_files: do we want to store the table also locally in Excel to check it
+    :param save_files: bool - do we want to store the table also locally in Excel to check it
+    :return: pandas.DataFrame object - returns transformed data(frame)
     """
     # reading excel, removing empty cols and rows, filling nan values with 0 and removing the subtotals
     df_lw_store = pd.read_excel(file, sheet_name="Last Week Report by Store",
@@ -34,10 +35,10 @@ def last_week_store(file, update_closed_stores=False, save_files=False):
 
 def fiscal_year_store(file, save_files=False):
     """
-    Idea with this function is that it converts the pivoted table from sheet 2 into raw data and stores it
-    :param file: Excel file we are reading
-    :param save_files: do we want to store the table also locally in Excel to check it
-    :return: returns transformed data
+    Reads 2nd sheet and transforms it into a raw dataframe (cols : store no, store,
+    :param file: str - Excel file we are reading
+    :param save_files: bool - do we want to store the table also locally in Excel to check it
+    :return: pandas.DataFrame object - returns transformed data(frame)
     """
     # removing Nan columns while loading, and the first total(YTD) column
     df_fy_store = pd.read_excel(file, sheet_name="Fiscal Year Report by Store", skiprows=2).drop(
@@ -47,7 +48,7 @@ def fiscal_year_store(file, save_files=False):
     # this filters out just the current year(hard coded supposing structure won't change)
     df_fy_store2 = df_fy_store[:last_year_index - 5].reset_index(drop=True)
     # This is separated last year table in case we would need it. In that case I would store the below
-    # part in a separate function so I could call it on both dataframes easily
+    # part in a separate function, so I could call it on both dataframes easily
     df_fy_store_yearminus = df_fy_store[last_year_index:-1].reset_index(drop=True)
     # here we find the subtotal columns. Reason why I evaded hard coding here because these orders can change
     x = 2
@@ -89,11 +90,12 @@ def fiscal_year_store(file, save_files=False):
 def reorder_func(x, col_names, new_data, fiscal_year):
     """
     utility function for lambda that adds data to new dataframe for each week/store combination
-    :param x: 1 row of dataframe
-    :param col_names: columns of dataframe
-    :param new_data: empty list that is filled
-    :param fiscal_year: year that has been read from the dataframe
+    :param x: df.Series object - 1 row of dataframe
+    :param col_names: list(str) - columns of dataframe
+    :param new_data: list - empty list that is filled
+    :param fiscal_year: str - year that has been read from the dataframe
     """
+    # looping values and columns since we need the column name for data in month and week columns
     for y, col_name in zip(x[2:], col_names[2:]):
         new_dict = dict()
         new_dict['Store no'] = x[0]
@@ -108,10 +110,12 @@ def reorder_func(x, col_names, new_data, fiscal_year):
 def update_spacenk(save_files=False, sheets=None, path=""):
     """
     main function that would update the whole Excel file(for this purpose only first two sheets)
-    It executes the above functions for each sheet and returns len of each sheet, so we can log that info for Prefect
-    :param save_files: do we want to store the table also locally in Excel to check it
-    :param sheets: list like object - sheets that we want to update default all sheets ['lw_store', 'fy_store']
-    :return: len(number of rows) of each dataframe
+    It executes the above functions for each sheet and messages with len of each sheet, so we can log that info for
+    Prefect
+    :param save_files: bool - True to store the table also locally in Excel to check it
+    :param sheets: list(str) - sheets that we want to update default all sheets ['lw_store', 'fy_store']
+    :param path: str - path to Excel file that is being read
+    :return: list(str) - list of messages
     """
 
     if sheets is None:
@@ -119,6 +123,7 @@ def update_spacenk(save_files=False, sheets=None, path=""):
     match_string = f'{path}SpaceNK_2.0*.xlsx'
     # Using glob to find the file since I noticed the file name may be inconsistent with (2) (1) in name.
     # I assumed this file is imported somewhere and is not in the same folder with other same named files.
+    # Also handling error if file is not found, sending it directly to workflow and raising it from there
     updated_table_messages = []
     try:
         file = glob.glob(match_string)[0]
@@ -134,6 +139,7 @@ def update_spacenk(save_files=False, sheets=None, path=""):
     # Base was imported from other file together with table names below
     spaceNK_base.metadata.create_all(engine)
     updated_table_messages = []
+
     for sheet in sheets:
         if sheet == 'lw_store':
             df_lw_store = last_week_store(file, update_closed_stores=True, save_files=save_files)
@@ -149,4 +155,3 @@ def update_spacenk(save_files=False, sheets=None, path=""):
 if __name__ == '__main__':
     additional_path = ""
     update_spacenk(save_files=True, path=additional_path)
-

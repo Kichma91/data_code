@@ -5,7 +5,8 @@ from sqlalchemy.ext.declarative import declarative_base
 lw_store_table_name = 'last_week_report_by_store'
 fy_store_table_name = 'fiscal_year_report_by_store'
 
-# in case we would also implement different Excel files that we want on separate metadata/base
+# in case we would also implement different Excel files that we want on separate metadata/base, but could be
+# redundant if we implemented the possibility to choose tables and sheets. Leaving it as it is now
 metadata_spacenk = MetaData()
 spaceNK_base = declarative_base(metadata=metadata_spacenk)
 

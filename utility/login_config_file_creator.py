@@ -2,7 +2,7 @@ import json
 
 
 def create_login_file():
-    '''in case you want to store login info json without too much hassle if youre testing this code'''
+    """in case you want to store login info json without too much hassle if youre testing this code"""
     config = {
         'sql_host': 'localhost',
         'sql_port': '5432',
