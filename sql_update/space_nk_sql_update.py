@@ -6,7 +6,6 @@ from sqlalchemy import create_engine
 
 from base_files.space_nk_base_files import spaceNK_base, lw_store_table_name, fy_store_table_name
 
-
 """
 Besides reading first sheet, I also added code for 2nd sheet. Also, looking at the other
 tables I think the code would be mostly a variation of these 2 codes below.
@@ -14,12 +13,13 @@ The code was tested on my PC and succesfully uploaded the data to PostGreSQL ser
 """
 
 
-def last_week_store(file, update_closed_stores = False):
+def last_week_store(file, update_closed_stores=False, save_files=False):
     """
     function that reads first sheet and updates it
-    :param file: excel file we are reading
+    :param file: Excel file we are reading
     :param update_closed_stores: there is data from closed stores. True if we want those stores included in update
                                   False if we want it filtered out
+    :param save_files: do we want to store the table also locally in Excel to check it
     """
     # reading excel, removing empty cols and rows, filling nan values with 0 and removing the subtotals
     df_lw_store = pd.read_excel(file, sheet_name="Last Week Report by Store",
@@ -27,14 +27,16 @@ def last_week_store(file, update_closed_stores = False):
     if not update_closed_stores:
         # in case we want to remove closed stores
         df_lw_store = df_lw_store.loc[~df_lw_store['Store'].str.contains('CLOSED')].reset_index(drop=True)
-    df_lw_store.to_excel(r'test1.xlsx')
+    if save_files:
+        df_lw_store.to_excel(r'test1.xlsx')
     return df_lw_store
 
 
-def fiscal_year_store(file):
+def fiscal_year_store(file, save_files=False):
     """
     Idea with this function is that it converts the pivoted table from sheet 2 into raw data and stores it
     :param file: Excel file we are reading
+    :param save_files: do we want to store the table also locally in Excel to check it
     :return: returns transformed data
     """
     # removing Nan columns while loading, and the first total(YTD) column
@@ -79,7 +81,8 @@ def fiscal_year_store(file):
     df_fy_store3.apply(lambda z: reorder_func(z, col_names, new_data, fiscal_year), axis=1)
     # new data frame created (from dict works on list of dicts)
     df = pd.DataFrame.from_dict(new_data)
-    df.to_excel(r'test2.xlsx')
+    if save_files:
+        df.to_excel(r'test2.xlsx')
     return df
 
 
@@ -102,12 +105,17 @@ def reorder_func(x, col_names, new_data, fiscal_year):
         new_data.append(new_dict)
 
 
-def update_spacenk():
+def update_spacenk(save_files=False, sheets=None):
     """
     main function that would update the whole Excel file(for this purpose only first two sheets)
     It executes the above functions for each sheet and returns len of each sheet, so we can log that info for Prefect
+    :param save_files: do we want to store the table also locally in Excel to check it
+    :param sheets: list like object - sheets that we want to update default all sheets ['lw_store', 'fy_store']
     :return: len(number of rows) of each dataframe
     """
+
+    if sheets is None:
+        sheets = ['lw_store', 'fy_store']
     # Using glob to find the file since I noticed the file name may be inconsistent with (2) (1) in name.
     # I assumed this file is imported somewhere and is not in the same folder with other same named files.
     match_string = 'SpaceNK_2.0*.xlsx'
@@ -117,16 +125,22 @@ def update_spacenk():
     engine = create_engine(f'postgresql://{login_data["sql_user"]}:'
                            f'{login_data["sql_password"]}@{login_data["sql_host"]}:'
                            f'{login_data["sql_port"]}/{login_data["sql_name"]}')
-    # calling last week store function that reads the first sheet and updates the data
-    df_lw_store = last_week_store(file, update_closed_stores=True)
-    df_fy_store = fiscal_year_store(file)
+    # calling last week store and fiscal year store functions that read the sheets and updates the data
     # Base was imported from other file together with table names below
     spaceNK_base.metadata.create_all(engine)
-    df_lw_store.to_sql(lw_store_table_name, engine, if_exists='replace', index=False)
-    df_fy_store.to_sql(fy_store_table_name, engine, if_exists='replace', index=False)
-    print('Finished uploading SpaceNK file')
-    return df_lw_store.shape[0], df_fy_store.shape[0]
+    updated_table_messages = []
+    for sheet in sheets:
+        if sheet == 'lw_store':
+            df_lw_store = last_week_store(file, update_closed_stores=True, save_files=save_files)
+            df_lw_store.to_sql(lw_store_table_name, engine, if_exists='replace', index=False)
+            updated_table_messages.append(f"Last Week per store : uploaded {df_lw_store.shape[0]} rows")
+        elif sheet == 'fy_store':
+            df_fy_store = fiscal_year_store(file, save_files=save_files)
+            df_fy_store.to_sql(fy_store_table_name, engine, if_exists='replace', index=False)
+            updated_table_messages.append(f"Fiscal Year  per store : uploaded {df_fy_store.shape[0]} rows")
+
+    return updated_table_messages
 
 
 if __name__ == '__main__':
-    update_spacenk()
+    update_spacenk(save_files=True)
