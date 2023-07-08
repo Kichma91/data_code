@@ -16,8 +16,9 @@ def spacenk_update(logger, sheets=None):
 
     logger.info("SpaceNK Update task running")
     # calling function from space_nk_sql_update file and receiving the messages
+    # I didn't want to pull save file variable from config file, since its mostly here for testing purpose
+    # I don't think Id ever test all the excel files, maybe just one. That's why I left it here for manual change
     updated_table_messages = update_spacenk(save_files=True, sheets=sheets)
-
     # for each updated table sheet, logger will broadcast a message. Here we are also raising an error in case file is
     # not found(error is first handled in space_nk_sql_update.update_spacenk function)
     for message in updated_table_messages:
