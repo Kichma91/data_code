@@ -6,29 +6,37 @@ from sqlalchemy import create_engine
 
 from base_files.space_nk_base_files import spaceNK_base, lw_store_table_name, fy_store_table_name
 
+
 """
-if the task was to read all the tables from all the sheets, I would've separated all of these functions
-to another file. Besides reading first sheet, I also added code for 2nd sheet. Also, looking at the other
+Besides reading first sheet, I also added code for 2nd sheet. Also, looking at the other
 tables I think the code would be mostly a variation of these 2 codes below.
 The code was tested on my PC and succesfully uploaded the data to PostGreSQL server
 """
 
 
-"""function that reads first sheet and updates it"""
-def last_week_store(file):
+def last_week_store(file, update_closed_stores = False):
+    """
+    function that reads first sheet and updates it
+    :param file: excel file we are reading
+    :param update_closed_stores: there is data from closed stores. True if we want those stores included in update
+                                  False if we want it filtered out
+    """
     # reading excel, removing empty cols and rows, filling nan values with 0 and removing the subtotals
     df_lw_store = pd.read_excel(file, sheet_name="Last Week Report by Store",
                                 skiprows=5).drop(columns=['Unnamed: 0', 'Unnamed: 1', 'Unnamed: 4']).fillna(0)[:-1]
-    # in case we want to remove closed stores
-    df_lw_store = df_lw_store.loc[~df_lw_store['Store'].str.contains('CLOSED')].reset_index(drop=True)
+    if not update_closed_stores:
+        # in case we want to remove closed stores
+        df_lw_store = df_lw_store.loc[~df_lw_store['Store'].str.contains('CLOSED')].reset_index(drop=True)
     df_lw_store.to_excel(r'test1.xlsx')
     return df_lw_store
 
 
-'''
-Idea with this function is that it converts the pivoted table from sheet 2 into raw data and stores it
-'''
 def fiscal_year_store(file):
+    """
+    Idea with this function is that it converts the pivoted table from sheet 2 into raw data and stores it
+    :param file: Excel file we are reading
+    :return: returns transformed data
+    """
     # removing Nan columns while loading, and the first total(YTD) column
     df_fy_store = pd.read_excel(file, sheet_name="Fiscal Year Report by Store", skiprows=2).drop(
         columns=['Unnamed: 0', 'Unnamed: 1', 'Unnamed: 4', 'Unnamed: 5'])
@@ -38,7 +46,7 @@ def fiscal_year_store(file):
     df_fy_store2 = df_fy_store[:last_year_index - 5].reset_index(drop=True)
     # This is separated last year table in case we would need it. In that case I would store the below
     # part in a separate function so I could call it on both dataframes easily
-    df_fy_store_VJ = df_fy_store[last_year_index:-1].reset_index(drop=True)
+    df_fy_store_yearminus = df_fy_store[last_year_index:-1].reset_index(drop=True)
     # here we find the subtotal columns. Reason why I evaded hard coding here because these orders can change
     x = 2
     cols_to_drop = []
@@ -76,6 +84,13 @@ def fiscal_year_store(file):
 
 
 def reorder_func(x, col_names, new_data, fiscal_year):
+    """
+    utility function for lambda that adds data to new dataframe for each week/store combination
+    :param x: 1 row of dataframe
+    :param col_names: columns of dataframe
+    :param new_data: empty list that is filled
+    :param fiscal_year: year that has been read from the dataframe
+    """
     for y, col_name in zip(x[2:], col_names[2:]):
         new_dict = dict()
         new_dict['Store no'] = x[0]
@@ -87,10 +102,15 @@ def reorder_func(x, col_names, new_data, fiscal_year):
         new_data.append(new_dict)
 
 
-def update_spaceNK():
-    # Using glob to find the file since I noticed the file name may be incosistent with (2) (1) in name.
+def update_spacenk():
+    """
+    main function that would update the whole Excel file(for this purpose only first two sheets)
+    It executes the above functions for each sheet and returns len of each sheet, so we can log that info for Prefect
+    :return: len(number of rows) of each dataframe
+    """
+    # Using glob to find the file since I noticed the file name may be inconsistent with (2) (1) in name.
     # I assumed this file is imported somewhere and is not in the same folder with other same named files.
-    match_string = "SpaceNK_2.0*.xlsx"
+    match_string = 'SpaceNK_2.0*.xlsx'
     file = glob.glob(match_string)[0]
     with open('login_data.json', 'r') as fp:
         login_data = json.load(fp)
@@ -98,27 +118,15 @@ def update_spaceNK():
                            f'{login_data["sql_password"]}@{login_data["sql_host"]}:'
                            f'{login_data["sql_port"]}/{login_data["sql_name"]}')
     # calling last week store function that reads the first sheet and updates the data
-    df_lw_store = last_week_store(file)
+    df_lw_store = last_week_store(file, update_closed_stores=True)
     df_fy_store = fiscal_year_store(file)
     # Base was imported from other file together with table names below
     spaceNK_base.metadata.create_all(engine)
     df_lw_store.to_sql(lw_store_table_name, engine, if_exists='replace', index=False)
     df_fy_store.to_sql(fy_store_table_name, engine, if_exists='replace', index=False)
-    print("Finished uploading SpaceNK file")
+    print('Finished uploading SpaceNK file')
     return df_lw_store.shape[0], df_fy_store.shape[0]
 
+
 if __name__ == '__main__':
-    update_spaceNK()
-
-
-'''in case you want to store login info json without too much hassle if youre testing this code'''
-# login_data = {
-# 'sql_host':'localhost',
-# 'sql_port' : '5432',
-# 'sql_name' : 'postgres',
-# 'sql_user' : 'postgres',
-# 'sql_password' : 'mypassword'}
-#
-# json_object = json.dumps(login_data,indent=4)
-# with open('login_data.json', 'w') as fp:
-#     fp.write(json_object)
+    update_spacenk()
