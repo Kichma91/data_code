@@ -2,6 +2,7 @@ import json
 import glob
 
 import pandas as pd
+
 from sqlalchemy import create_engine
 
 from base_files.space_nk_base_files import spaceNK_base, lw_store_table_name, fy_store_table_name
@@ -25,6 +26,12 @@ def last_week_store(file, update_closed_stores=False, save_files=False):
     # reading excel, removing empty cols and rows, filling nan values with 0 and removing the subtotals
     df_lw_store = pd.read_excel(file, sheet_name="Last Week Report by Store",
                                 skiprows=5).drop(columns=['Unnamed: 0', 'Unnamed: 1', 'Unnamed: 4']).fillna(0)[:-1]
+    # a small check if Excel structure changed.
+    if df_lw_store.columns[0] != 'Store No' or df_lw_store.iloc[-1]['Store No'] in ['Total','LY %','LY Total'] or\
+            pd.isnull(df_lw_store.iloc[-1]['Store No']):
+        raise BaseException("ERROR: Structure of the dataframe is not correct")
+
+
     if not update_closed_stores:
         # in case we want to remove closed stores
         df_lw_store = df_lw_store.loc[~df_lw_store['Store'].str.contains('CLOSED')].reset_index(drop=True)
@@ -52,6 +59,7 @@ def fiscal_year_store(file, save_files=False):
     df_fy_store_yearminus = df_fy_store[last_year_index:-1].reset_index(drop=True)
     # here we find the subtotal columns. Reason why I evaded hard coding here because these orders can change
     x = 2
+
     cols_to_drop = []
     for value in df_fy_store2.iloc[2][2:].fillna(''):
         if value == '':
@@ -77,6 +85,10 @@ def fiscal_year_store(file, save_files=False):
     df_fy_store2 = df_fy_store2.iloc[2:].reset_index(drop=True)
     # transposing the frame to remove the header row and transpose back
     df_fy_store3 = df_fy_store2.T.set_index(0).T
+    if df_fy_store3.columns[0] != 'Store No' or df_fy_store3.iloc[-1]['Store No'] in ['Total\n', 'LY %', 'LY Total'] or\
+            pd.isnull(df_fy_store3.iloc[-1]['Store No']):
+                raise BaseException("ERROR: Structure of the dataframe is not correct")
+
     # applying the function set below which goes through values and creates new raw data
     new_data = []
     df_fy_store3.apply(lambda z: reorder_func(z, col_names, new_data, fiscal_year), axis=1)
@@ -107,7 +119,7 @@ def reorder_func(x, col_names, new_data, fiscal_year):
         new_data.append(new_dict)
 
 
-def update_spacenk(save_files=False, sheets=None, path=""):
+def update_spacenk(save_files=True, sheets=None, path=""):
     """
     main function that would update the whole Excel file(for this purpose only first two sheets)
     It executes the above functions for each sheet and messages with len of each sheet, so we can log that info for
@@ -142,11 +154,21 @@ def update_spacenk(save_files=False, sheets=None, path=""):
 
     for sheet in sheets:
         if sheet == 'lw_store':
-            df_lw_store = last_week_store(file, update_closed_stores=True, save_files=save_files)
+            try:
+                df_lw_store = last_week_store(file, update_closed_stores=True, save_files=save_files)
+            except BaseException as e:
+                updated_table_messages.append(f"ERROR {str(e)}")
+                print(str(e))
+                continue
             df_lw_store.to_sql(lw_store_table_name, engine, if_exists='replace', index=False)
             updated_table_messages.append(f"Last Week per store : uploaded {df_lw_store.shape[0]} rows")
         elif sheet == 'fy_store':
-            df_fy_store = fiscal_year_store(file, save_files=save_files)
+            try:
+                df_fy_store = fiscal_year_store(file, save_files=save_files)
+            except BaseException as e:
+                updated_table_messages.append(f"ERROR {str(e)}")
+                print(str(e))
+                continue
             df_fy_store.to_sql(fy_store_table_name, engine, if_exists='replace', index=False)
             updated_table_messages.append(f"Fiscal Year  per store : uploaded {df_fy_store.shape[0]} rows")
     return updated_table_messages

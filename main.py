@@ -22,7 +22,7 @@ def spacenk_update(logger, sheets=None):
     # not found(error is first handled in space_nk_sql_update.update_spacenk function)
     for message in updated_table_messages:
         if message[:5] == "ERROR":
-            raise FileNotFoundError(message)
+            raise BaseException(message)
         logger.info(message)
 
     logger.info(f"SpaceNK update finished:")
