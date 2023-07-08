@@ -29,7 +29,7 @@ def last_week_store(file, update_closed_stores=False, save_files=False):
     # a small check if Excel structure changed.
     if df_lw_store.columns[0] != 'Store No' or df_lw_store.iloc[-1]['Store No'] in ['Total','LY %','LY Total'] or\
             pd.isnull(df_lw_store.iloc[-1]['Store No']):
-        raise Exception("ERROR: Structure of the dataframe is not correct")
+        raise Exception("Structure of the dataframe is not correct")
 
 
     if not update_closed_stores:
@@ -91,7 +91,7 @@ def fiscal_year_store(file, save_files=False):
     # assuming number of stores is not changing (frequently).
     if df_fy_store3.columns[0] != 'Store No' or df_fy_store3.iloc[-1]['Store No'] in ['Total\n', 'LY %', 'LY Total'] or\
             pd.isnull(df_fy_store3.iloc[-1]['Store No']):
-                raise Exception("ERROR: Structure of the dataframe is not correct")
+                raise Exception("Structure of the dataframe is not correct")
 
     # applying the function set below which goes through values and creates new raw data
     new_data = []

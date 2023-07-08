@@ -21,6 +21,7 @@ def spacenk_update(logger, sheets=None):
     updated_table_messages = update_spacenk(save_files=True, sheets=sheets)
     # for each updated table sheet, logger will broadcast a message. Here we are also raising an error in case file is
     # not found(error is first handled in space_nk_sql_update.update_spacenk function)
+
     for message in updated_table_messages:
         if message[:5] == "ERROR":
             raise Exception(message)
