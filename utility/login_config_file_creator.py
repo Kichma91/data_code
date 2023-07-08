@@ -15,7 +15,7 @@ def create_login_file():
     }
 
     json_object = json.dumps(config, indent=4)
-    with open('config.json', 'w') as fp:
+    with open('../config.json', 'w') as fp:
         fp.write(json_object)
 
 
