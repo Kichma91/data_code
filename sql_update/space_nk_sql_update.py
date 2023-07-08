@@ -122,7 +122,7 @@ def update_spacenk(save_files=False, sheets=None, path=""):
         sheets = ['lw_store', 'fy_store']
     match_string = f'{path}SpaceNK_2.0*.xlsx'
     # Using glob to find the file since I noticed the file name may be inconsistent with (2) (1) in name.
-    # I assumed this file is imported somewhere and is not in the same folder with other same named files.
+    # I assumed this read from some designated folder and is not in the same folder with other same named files.
     # Also handling error if file is not found, sending it directly to workflow and raising it from there
     updated_table_messages = []
     try:
@@ -153,5 +153,5 @@ def update_spacenk(save_files=False, sheets=None, path=""):
 
 
 if __name__ == '__main__':
-    additional_path = ""
+    additional_path = "../"
     update_spacenk(save_files=True, path=additional_path)
