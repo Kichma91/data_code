@@ -105,7 +105,7 @@ def reorder_func(x, col_names, new_data, fiscal_year):
         new_data.append(new_dict)
 
 
-def update_spacenk(save_files=False, sheets=None):
+def update_spacenk(save_files=False, sheets=None, path=""):
     """
     main function that would update the whole Excel file(for this purpose only first two sheets)
     It executes the above functions for each sheet and returns len of each sheet, so we can log that info for Prefect
@@ -116,11 +116,16 @@ def update_spacenk(save_files=False, sheets=None):
 
     if sheets is None:
         sheets = ['lw_store', 'fy_store']
-    match_string = 'SpaceNK_2.0*.xlsx'
+    match_string = f'{path}SpaceNK_2.0*.xlsx'
     # Using glob to find the file since I noticed the file name may be inconsistent with (2) (1) in name.
     # I assumed this file is imported somewhere and is not in the same folder with other same named files.
-    file = glob.glob(match_string)[0]
-    with open('config.json', 'r') as fp:
+    updated_table_messages = []
+    try:
+        file = glob.glob(match_string)[0]
+    except IndexError:
+        updated_table_messages.append("ERROR: File Space NK was not found")
+        return updated_table_messages
+    with open(f'{path}config.json', 'r') as fp:
         config_data = json.load(fp)
     engine = create_engine(f'postgresql://{config_data["sql_user"]}:'
                            f'{config_data["sql_password"]}@{config_data["sql_host"]}:'
@@ -138,9 +143,10 @@ def update_spacenk(save_files=False, sheets=None):
             df_fy_store = fiscal_year_store(file, save_files=save_files)
             df_fy_store.to_sql(fy_store_table_name, engine, if_exists='replace', index=False)
             updated_table_messages.append(f"Fiscal Year  per store : uploaded {df_fy_store.shape[0]} rows")
-
     return updated_table_messages
 
 
 if __name__ == '__main__':
-    update_spacenk(save_files=True)
+    additional_path = ""
+    update_spacenk(save_files=True, path=additional_path)
+

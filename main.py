@@ -17,10 +17,13 @@ def spacenk_update(logger, sheets=None):
 
     logger.info("SpaceNK Update task running")
     updated_table_messages = update_spacenk(save_files=True, sheets=sheets)
-    logger.info(f"SpaceNK update finished:")
+
     # for each updated table sheet, logger will broadcast a message
     for message in updated_table_messages:
+        if message[:5] == "ERROR":
+            raise FileNotFoundError(message)
         logger.info(message)
+    logger.info(f"SpaceNK update finished:")
 
 @flow(name="Update Excel tables")
 def update_all_tables(space_nk=True, space_nk_sheets=None):
